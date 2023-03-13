@@ -1,0 +1,50 @@
+package main
+
+import (
+	"math"
+	"math/rand"
+	"time"
+)
+
+// fill in parallel code here
+func (b *Board) DiffuseParallel(numProcs int) {
+	n := len(b.particles)
+
+	finished := make(chan bool, numProcs)
+
+	for i := 0; i < numProcs; i++ {
+		// split our work into numProcs pieces
+		startIndex := i * n / numProcs
+		endIndex := (i + 1) * n / numProcs
+		// adjust end index if we're at the last piece
+		if i == numProcs-1 {
+			endIndex = n
+		}
+		source := rand.NewSource(time.Now().UnixNano())
+		generator := rand.New(source)
+		go DiffuseOneProc(b.particles[startIndex:endIndex], generator, finished)
+	}
+
+	// how do I know when to stop?
+	// use our dummy channel and grab values from it
+	for i := 0; i < numProcs; i++ {
+		<-finished
+	}
+}
+
+func DiffuseOneProc(particles []*Particle, generator *(rand.Rand), finished chan bool) {
+	for _, p := range particles {
+		p.RandStepFast(generator)
+	}
+
+	// diffusion is done, so pass this info into channel
+	finished <- true
+}
+
+func (p *Particle) RandStepFast(generator *(rand.Rand)) {
+	// fill in our rand step function here.
+	stepLength := p.diffusionRate
+	angle := generator.Float64() * 2 * math.Pi
+	p.position.x += stepLength * math.Cos(angle)
+	p.position.y += stepLength * math.Sin(angle)
+}
